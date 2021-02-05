@@ -20,7 +20,7 @@ This repository contains the code used for the paper titled "Domain Adaptation w
 1. Download the PAR/HARR datasets
     - PAR: https://sensor.informatik.uni-mannheim.de/#dataset
     - HARR: http://archive.ics.uci.edu/ml/datasets/heterogeneity+activity+recognition#:~:text=The%20Heterogeneity%20Dataset%20for%20Human,%2C%20feature%20extraction%2C%20etc.
-2. Run ```main.py``` in one of the modes: 
+2. Run ```main.py``` in one of the following modes: 
     - `cr_user`: cross user
     - `cr_device`: cross device 
     - `cr_user_device`: cross user and cross device
