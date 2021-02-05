@@ -48,11 +48,11 @@ python main.py --dataset PAR --mode cr_user --path "path/to/dataset"
 
 ## Results
 
-![Alt text](images/shifts.png?raw=true "shifts")
+![Alt text](images/shifts.PNG?raw=true "shifts")
 
-![Alt text](images/shifts_dann.png?raw=true "shifts_dann")
+![Alt text](images/shifts_dann.PNG?raw=true "shifts_dann")
 
-![Alt text](images/shifts_odin.png?raw=true "shifts_odin")
+![Alt text](images/shifts_odin.PNG?raw=true "shifts_odin")
 
 ## Contacts
 
