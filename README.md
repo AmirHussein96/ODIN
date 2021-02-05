@@ -39,7 +39,7 @@ python main.py --dataset PAR --mode cr_user --path "path/to/dataset"
 
 
 
-## Generate a Sample of Adversarial Examples
+## Sample of reconstructed signals from test set after adaptation
 
 - Run ```inspect_AE.py``` to generate sample figures of advesarial examples 
 ![Alt text](images/AE_noise.png?raw=true "AE")
