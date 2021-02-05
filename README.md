@@ -17,9 +17,9 @@ This repository contains the code used for the paper titled "Domain Adaptation w
 
 ## Quick start
 
-1. Download the two datasets (CHBMIT and FB) and move them into their folders.
-    - CHBMIT: http://physionet.org/physiobank/database/chbmit/
-    - FB: http://epilepsy.uni-freiburg.de.
+1. Download the PAR/HARR datasets
+    - PAR: https://sensor.informatik.uni-mannheim.de/#dataset
+    - HARR: http://archive.ics.uci.edu/ml/datasets/heterogeneity+activity+recognition#:~:text=The%20Heterogeneity%20Dataset%20for%20Human,%2C%20feature%20extraction%2C%20etc).
 2. Run ```main.py```
 ```
 python main.py --mode without_AE --dataset CHBMIT
