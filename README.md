@@ -46,9 +46,9 @@ python main.py --dataset PAR --mode cr_user --path "path/to/dataset"
 ![Alt text](images/Figure_2.png?raw=true "rec2")
 
 
-## Results
+## Domain adaptation toy  example
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1APQdDNW4zwRemgWM1mpTsjgb4-rcKVT9?usp=sharing)
+Toy examples for the limitations of domain adaptation with hard parameter sharing and how domain adaptation with soft parameter sharing overcomes these limitations [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1APQdDNW4zwRemgWM1mpTsjgb4-rcKVT9?usp=sharing)
 
 ![Alt text](images/shifts.PNG?raw=true "shifts")
 
