@@ -4,14 +4,8 @@ This repository contains the code used for the paper titled "Domain Adaptation w
 
 ## Requirements
 
-* h5py (2.9.0)
-* hickle (3.4.5)
-* matplotlib (3.1.1)
-* mne (0.11.0)
-* pandas (0.25.1)
-* scikit-learn (0.21.3)
-* scipy (1.1.0)
-* tensorflow-gpu (1.14.0)
+- python version ` 3.6.12 `
+- conda create --name <env> --file <requirements.txt>
 
 ## Main Folders Description
 
