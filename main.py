@@ -98,7 +98,7 @@ def get_args():
     parser.add_argument('-c', '--device', help='Wearable device [watch|phone]', 
                         type=str, default='watch')
     parser.add_argument('-p', '--path', help='Dataset path', 
-                        type = str, default='C:/Users/anh21/OneDrive - American University of Beirut/tf-dann-master/datasets/')
+                        type = str, default='path/to/dataset')
     
     return parser.parse_args()
 
