@@ -6,6 +6,10 @@ This repository contains the code used for the paper titled "Domain Adaptation w
 
 ![Alt text](images/high_level.png?raw=true "proposed_approach")
 
+## Model
+
+![Alt text](images/DA_AE_soft.png?raw=true "proposed_approach")
+
 ## Requirements
 
 - python version ` 3.6.12 `
@@ -33,9 +37,6 @@ This repository contains the code used for the paper titled "Domain Adaptation w
 python main.py --dataset PAR --mode cr_user --path "path/to/dataset"
 ```
 
-## Model
-
-![Alt text](images/proposed_approach.PNG?raw=true "proposed_approach")
 
 
 ## Generate a Sample of Adversarial Examples
