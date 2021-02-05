@@ -43,6 +43,7 @@ python main.py --dataset PAR --mode cr_user --path "path/to/dataset"
 
 - Run ```inspect_AE.py``` to generate sample figures of advesarial examples 
 ![Alt text](images/Figure_1.png?raw=true "rec1")
+![Alt text](images/Figure_2.png?raw=true "rec2")
 
 
 ## Results
