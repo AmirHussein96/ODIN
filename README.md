@@ -5,7 +5,7 @@ This repository contains the code used for the paper titled "Domain Adaptation w
 ## Requirements
 
 - python version ` 3.6.12 `
-- conda env create -f environment.yml
+- To create anaconda environment run `conda env create -f environment.yml`
 
 ## Main Folders Description
 
