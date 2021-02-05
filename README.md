@@ -2,6 +2,10 @@
 
 This repository contains the code used for the paper titled "Domain Adaptation with Representation Learning and Nonlinear Relation for Time Series" by Hussein A., Hajj H. [comming soon] 
 
+## High level approach description
+
+![Alt text](images/high_level.png?raw=true "proposed_approach")
+
 ## Requirements
 
 - python version ` 3.6.12 `
