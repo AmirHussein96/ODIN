@@ -1,0 +1,39 @@
+name: base
+channels:
+  - defaults
+dependencies:
+  - ca-certificates=2020.1.1=0
+  - certifi=2020.4.5.1=py37_0
+  - cffi=1.14.0=py37h7a1dbc1_0
+  - chardet=3.0.4=py37_1003
+  - conda=4.8.3=py37_0
+  - conda-package-handling=1.6.1=py37h62dcd97_0
+  - console_shortcut=0.1.1=4
+  - cryptography=2.9.2=py37h7a1dbc1_0
+  - idna=2.9=py_1
+  - menuinst=1.4.16=py37he774522_0
+  - openssl=1.1.1g=he774522_0
+  - pip=20.0.2=py37_3
+  - powershell_shortcut=0.0.1=3
+  - pycosat=0.6.3=py37he774522_0
+  - pycparser=2.20=py_0
+  - pyopenssl=19.1.0=py37_0
+  - pysocks=1.7.1=py37_0
+  - python=3.7.6=h60c2a47_2
+  - pywin32=227=py37he774522_1
+  - requests=2.23.0=py37_0
+  - ruamel_yaml=0.15.87=py37he774522_0
+  - setuptools=46.4.0=py37_0
+  - six=1.14.0=py37_0
+  - sqlite=3.31.1=h2a8f88b_1
+  - tqdm=4.46.0=py_0
+  - urllib3=1.25.8=py37_0
+  - vc=14.1=h0510ff6_4
+  - vs2015_runtime=14.16.27012=hf0eaf9b_2
+  - wheel=0.34.2=py37_0
+  - win_inet_pton=1.1.0=py37_0
+  - wincertstore=0.2=py37_0
+  - yaml=0.1.7=hc54c509_2
+  - zlib=1.2.11=h62dcd97_4
+prefix: C:\Users\anh21\Miniconda3
+
