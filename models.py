@@ -820,7 +820,6 @@ class ODIN(object):
         alpha=0.5
         self.X_s = tf.placeholder(tf.float32, [None, 128, 3],name='input_s')
         self.X_t = tf.placeholder(tf.float32, [None, 128, 3],name='input_t')
-        pdb.set_trace()
         self.y_s = tf.placeholder(tf.float32, [None, self.n_lables],name='labels_s')
         self.y_t = tf.placeholder(tf.float32, [None, self.n_lables],name='labels_t')
         
