@@ -3,8 +3,9 @@ from utils import *
 import tensorflow as tf
 from tensorflow.keras import layers
 from utils import batch_generator
+from sklearn.preprocessing import StandardScaler
 import numpy as np
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, StratifiedKFold
 import os
 import pdb
 
@@ -138,9 +139,10 @@ def conv_layer(input,k, size_in, size_out,stride,name="conv",init_val=None,tr=Tr
         b = tf.get_variable(initializer=tf.constant_initializer(init_val[1]),name="B%s"%(name),shape=[size_out],trainable=tr)
     conv = tf.nn.conv1d(input, w, stride=stride,padding='VALID')
 #    if batch_norm==True:
-#        with tf.variable_scope(name,reuse=tf.AUTO_REUSE):
-#            conv=tf.layers.batch_normalization(conv, training=train)
-    act = tf.nn.relu(conv + b)
+    with tf.variable_scope(name,reuse=tf.AUTO_REUSE):
+   
+        act = tf.nn.relu(conv + b)
+       # act = tf.layers.batch_normalization(act, training=tr)
 #    tf.summary.histogram("weights", w)
 #    tf.summary.histogram("biases", b)
 #    tf.summary.histogram("activations", act) 
@@ -634,17 +636,18 @@ class Source_model(object):
     def _build_model(self):
         alpha=0.5 
         self.X = tf.placeholder(tf.float32, [None, 128, 3],name='input')
+        self.X_n = tf.placeholder(tf.float32, [None, 128, 3],name='noisy_input')
         self.y = tf.placeholder(tf.float32, [None, self.n_lables],name='labels')
         self.train = tf.placeholder(tf.bool, [],name='train_flag')
         self.keep_rate = tf.placeholder_with_default(1.0, shape=(),name='keep_rate') 
         # CNN model for feature extraction
        
         with tf.variable_scope('source_feature_extractor'):            
-            conv1=conv_layer(self.X,5,3, 32,stride=1, name="conv1")
+            conv1 = conv_layer(self.X_n, 5, 3, 32,stride=1, name="conv1")
             print('conv1: ',conv1.shape)
            
 #            tf.summary.histogram('feature_layer1',layer1)
-            conv2=conv_layer(conv1, 3, 32, 64,stride=1, name="conv2")
+            conv2 = conv_layer(conv1, 3, 32, 64,stride=1, name="conv2")
             #conv2_drop = tf.nn.dropout(conv2, self.keep_rate)
             print('conv2: ',conv2.shape)
             gru,state_h=layers.GRU(32,name='gru_1',return_sequences=True,return_state=True)(conv2)
@@ -702,7 +705,7 @@ class Source_model(object):
             
            # Build the model graph
         
-        self.learning_rate = tf.placeholder(tf.float32, [])
+        #self.learning_rate = tf.placeholder(tf.float32, [])
         self.l2_loss = 0.001*sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
         self.pred_loss = tf.reduce_mean(self.pred_loss)
         #loss_summary1=tf.summary.scalar('pred_loss',self.pred_loss)
@@ -739,32 +742,31 @@ class Source_model(object):
         """Helper to run the model with different training modes."""
 
         self.num_steps = num_steps
-        X_train_s, y_train_s, combined_test, X_val_s, y_val_s, X_val_t, y_val_t = data
+        X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s, X_val_t, y_val_t = data
         history = dict(source_acc=[],target_acc=[],domain_acc=[],embed=[])
        # with tf.Session() as sess:
         self.sess = tf.Session() 
         self.sess.run(tf.global_variables_initializer()) 
         # Batch generators
         gen_source_only_batch = batch_generator(
-            [X_train_s, y_train_s], self.batch_size)
+            [X_train_s, X_train_s_n, y_train_s], self.batch_size)
       
-    
         # Training loop
         for i in range(num_steps):
             # Adaptation param and learning rate schedule 
             p = float(i) / num_steps
-            lr = 0.01 / (1. + 10 * p)**0.75
-            X, y = next(gen_source_only_batch)
+           # lr = 0.01 / (1. + 10 * p)**0.75
+            X, X_n, y = next(gen_source_only_batch)
             
             _, batch_loss,p_acc,rec_loss = self.sess.run([self.train_opt, 
                                                      self.pred_loss, self.label_acc, 
                                                      self.recon_loss],
-                                 feed_dict={self.X: X, self.y: y, self.train: False
-                                         , self.keep_rate:1, self.learning_rate: lr})
+                                 feed_dict={self.X: X, self.X_n: X_n, self.y: y, self.train: False
+                                         , self.keep_rate:1})
         
             if verbose and i % 1000 == 0:
                     source_acc = self.sess.run(self.label_acc,
-                            feed_dict={self.X: X_val_s, self.y:y_val_s,
+                            feed_dict={self.X_n: X_val_s, self.y:y_val_s,
                                        self.train: False,self.keep_rate:1.0})
                     print('batch_loss: %.3f  source_val_acc: %.3f rec_loss: %.3f '%(
                             batch_loss, source_acc, rec_loss))
@@ -772,12 +774,12 @@ class Source_model(object):
         # Compute final evaluation on test data
         print("Testing..........................")
         source_acc = self.sess.run(self.label_acc,
-                            feed_dict={self.X: X_val_s, self.y:y_val_s,
+                            feed_dict={self.X_n: X_val_s, self.y:y_val_s,
                                        self.train: False,self.keep_rate:1.0})
         target_acc = self.sess.run(self.label_acc,
-                            feed_dict={self.X: X_val_t, self.y: y_val_t,
+                            feed_dict={self.X_n: X_val_t, self.y: y_val_t,
                                        self.train: False,self.keep_rate:1.0})
-        test_emb = self.sess.run(self.feature, feed_dict={self.X: combined_test, self.train: False})
+        test_emb = self.sess.run(self.feature, feed_dict={self.X_n: combined_test, self.train: False})
        
         # saving results
         history['source_acc'].append(source_acc)
@@ -820,8 +822,11 @@ class ODIN(object):
         alpha=0.5
         self.X_s = tf.placeholder(tf.float32, [None, 128, 3],name='input_s')
         self.X_t = tf.placeholder(tf.float32, [None, 128, 3],name='input_t')
+       # pdb.set_trace()
         self.y_s = tf.placeholder(tf.float32, [None, self.n_lables],name='labels_s')
         self.y_t = tf.placeholder(tf.float32, [None, self.n_lables],name='labels_t')
+        self.X_s_n = tf.placeholder(tf.float32, [None, 128, 3],name='input_s_n')
+        self.X_t_n = tf.placeholder(tf.float32, [None, 128, 3],name='input_t_n')
         
         self.l = tf.placeholder(tf.float32, [],name='mmd_weight')
         self.train = tf.placeholder(tf.bool, [],name='train_flag')
@@ -833,11 +838,11 @@ class ODIN(object):
     #        self.X_in_t=normalize(self.X_t,data_mean,data_std)
         # CNN model for feature extraction
         with tf.variable_scope('source_feature_extractor') as source:
-            conv1 = conv_layer(self.X_s, 5,3, 32,stride=1, name="source_conv1",
+            conv1 = conv_layer(self.X_s_n, 5,3, 32,stride=1, name="source_conv1",
                                init_val=[self.pretrained_par[0][0],self.pretrained_par[0][1]])
             
         with tf.variable_scope('target_feature_extractor'):
-            conv1_t = conv_layer( self.X_t, 5,3, 32,stride=1, name="target_conv1",
+            conv1_t = conv_layer( self.X_t_n, 5,3, 32,stride=1, name="target_conv1",
                                  init_val=[self.pretrained_par[0][0],self.pretrained_par[0][1]])
             
         
@@ -1030,10 +1035,10 @@ class ODIN(object):
 
     def train_and_evaluate(self, data, graph, norm, user=None, num_steps=1000, verbose=True):
         """Helper to run the model with different training modes."""
-        X_t, Y_t, X_train_s, y_train_s, X_val_s, y_val_s = data
+        X_t, _,  Y_t, X_train_s, X_train_s_n, y_train_s, X_val_s, y_val_s = data
         history = dict(source_acc=[],target_acc=[],domain_acc=[],embed=[],test_labels=[],test_domain=[])
     
-        skf = KFold(n_splits=5,random_state=42, shuffle=True)
+        skf = KFold(n_splits=5,random_state=10, shuffle=True)
         fold=0
        
         for train_index, test_index in skf.split(X_t, Y_t.argmax(1)):
@@ -1043,8 +1048,9 @@ class ODIN(object):
             X_train_t, X_val_t, y_train_t, y_val_t =  X_t[train_index],\
                             X_t[test_index], Y_t[train_index],Y_t[test_index]
             
-            
+            X_t_n = X_train_t + gen_noise(X_train_t.shape, X_train_t, False)
             X_train_t = norm.transform(X_train_t.reshape(-1,3)).reshape(-1,128,3)
+            X_t_n = norm.transform(X_t_n.reshape(-1,3)).reshape(-1,128,3)
             X_val_t = norm.transform(X_val_t.reshape(-1,3)).reshape(-1,128,3)
             num_test = 400
             combined_test_labels = np.vstack([y_val_s[:num_test], y_val_t[:num_test]])
@@ -1058,9 +1064,9 @@ class ODIN(object):
         
             # Batch generators
             gen_source_batch = batch_generator(
-                [X_train_s, y_train_s], self.batch // 2)
+                [X_train_s, X_train_s_n , y_train_s], self.batch // 2)
             gen_target_batch = batch_generator(
-                [X_train_t, y_train_t], self.batch // 2)
+                [X_train_t, X_t_n, y_train_t], self.batch // 2)
         
             domain_labels = np.vstack([np.tile([1., 0.], [self.batch // 2, 1]),
                                        np.tile([0., 1.], [self.batch // 2, 1])])
@@ -1074,40 +1080,45 @@ class ODIN(object):
             step = 0
             for i in range(num_steps):
              
-                X0, y0 = next(gen_source_batch)
-                X1, y1 = next(gen_target_batch)
+                X0, X0_n, y0 = next(gen_source_batch)
+                X1, X1_n, y1 = next(gen_target_batch)
               
                 _, batch_loss, ploss, p_acc,l2,da_loss,ae_loss = sess.run(
                     [ self.adapt_opt, self.total_loss, self.pred_loss, 
                      self.label_acc,self.L2,self.adver_loss,self.recon_loss],
-                    feed_dict={self.X_s: X0, self.X_t: X1, self.y_s: y0, 
+                    feed_dict={self.X_s: X0, self.X_s_n: X0_n, self.X_t: X1, self.X_t_n: X1_n,self.y_s: y0, 
                                self.y_t:y1,self.domain:domain_labels,
                                self.train: True, self.l: 0.1, self.keep_rate:1, self.L2_loss:0.5})
                 
                 step+=1
                 if verbose and step % 100 == 0:
                     source_acc = sess.run(self.label_acc,
-                                feed_dict={self.X_s: X_val_s[0:y_val_t.shape[0]],
-                                           self.X_t: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
+                                feed_dict={self.X_s_n: X_val_s[0:y_val_t.shape[0]],
+                                           self.X_t_n: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
                                            self.y_t:y_val_t, self.train: True, self.keep_rate:1.0})
+                    target_acc = sess.run(self.label_acc,
+                                    feed_dict={
+                                        self.X_s_n: X_val_s[0:y_val_t.shape[0]],
+                                           self.X_t_n: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
+                                           self.y_t:y_val_t, self.train: False, self.keep_rate:1.0})
                     #print_a_b(sess)
-                    print('total_loss: %.3f  source_val_acc: %.3f ploss: %.3f  adver_loss: %.3f  l2: %.3f  recon_loss: %.3f'%(
-                            batch_loss, source_acc, ploss,da_loss,l2,ae_loss))
+                    print('total_loss: %.3f  source_val_acc: %.3f ploss: %.3f target_acc: %.3f adver_loss: %.3f  l2: %.3f  recon_loss: %.3f'%(
+                            batch_loss, source_acc, ploss,target_acc, da_loss,l2,ae_loss))
                                  
             # Compute final evaluation on test data
             source_acc = sess.run(self.label_acc,
-                                feed_dict={self.X_s: X_val_s[0:y_val_t.shape[0]],
-                                           self.X_t: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
+                                feed_dict={self.X_s_n: X_val_s[0:y_val_t.shape[0]],
+                                           self.X_t_n: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
                                            self.y_t:y_val_t, self.train: True,self.keep_rate:1.0})
             
             target_acc = sess.run(self.label_acc,
-                                feed_dict={self.X_s:np.zeros( X_val_t.shape),
-                                           self.X_t: X_val_t,self.y_s:np.zeros(y_val_t.shape),
+                                feed_dict={self.X_s_n:np.zeros( X_val_t.shape),
+                                           self.X_t_n: X_val_t,self.y_s:np.zeros(y_val_t.shape),
                                            self.y_t:y_val_t, self.train: False,self.keep_rate:1.0})
             
             
-            test_emb = sess.run(self.feature, feed_dict={self.X_s: X_val_s[:num_test],
-                                                          self.X_t:X_val_t[:num_test], self.train: False})
+            test_emb = sess.run(self.feature, feed_dict={self.X_s_n: X_val_s[:num_test],
+                                                          self.X_t_n:X_val_t[:num_test], self.train: False})
             
             
             #saving results
