@@ -146,7 +146,7 @@ def train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s,
         save_file(feature, os.path.join(str(save_path),'%s_%s.hkl'%('feat_ext',args.user)))
         save_file(label_class, os.path.join(str(save_path),'%s_%s.hkl'%('label_class',args.user)))
         save_file(decode_w, os.path.join(str(save_path),'%s_%s.hkl'%('decode',args.user)))
-        #compare_recon(sess, X_val_t, odin, 0, False)
+        compare_recon(sess, X_val_t, odin, 0, False)
         
         
 def main():
