@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Copyright (C) 2020 American University of Beirut
                         Amir Hussein
@@ -25,9 +24,9 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler,MinMaxScaler,RobustScaler
 from sklearn.model_selection import KFold, StratifiedKFold
-from utils import *
+from utils import gen_noise, save_file, compare_recon
 from models import mmd_loss, fixprob, Source_model, ODIN
-from data_preparation import *
+from data_preparation import windowing, extract_users, down_sampling2, load_data
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
@@ -60,24 +59,28 @@ def prep_data(data_t, data_s):
     """
     Normalizaing and splitting the data for training and adaptation
     """        
-    X_t,Y_t=windowing(data_t)
-    X_s,Y_s=windowing(data_s)  
+    X_t,Y_t = windowing(data_t) 
+    X_s,Y_s = windowing(data_s)  
 
     X_train_s, X_val_s, y_train_s, y_val_s = train_test_split( X_s, Y_s, test_size=0.20,random_state=42,stratify=Y_s)
     X_train_t, X_val_t, y_train_t, y_val_t = train_test_split(X_t, Y_t, test_size=0.20,random_state=42,stratify=Y_t) 
-    #
+    X_train_s_n = X_train_s + gen_noise(X_train_s.shape, X_train_s, False)
+    X_train_t_n = X_train_t + gen_noise(X_train_t.shape, X_train_t, False)
+    
     norm = StandardScaler()
     norm.fit(np.vstack([X_train_s,X_train_t]).reshape(-1,3))
-    X_train_s=norm.transform(X_train_s.reshape(-1,3)).reshape(-1,128,3)
-    X_train_t=norm.transform(X_train_t.reshape(-1,3)).reshape(-1,128,3)
-    X_val_s=norm.transform(X_val_s.reshape(-1,3)).reshape(-1,128,3)
-    X_val_t=norm.transform(X_val_t.reshape(-1,3)).reshape(-1,128,3)
+    X_train_s = norm.transform(X_train_s.reshape(-1,3)).reshape(-1,128,3)
+    X_train_t = norm.transform(X_train_t.reshape(-1,3)).reshape(-1,128,3)
+    X_train_s_n = norm.transform(X_train_s_n.reshape(-1,3)).reshape(-1,128,3)
+    X_train_t_n = norm.transform(X_train_t_n.reshape(-1,3)).reshape(-1,128,3)
+    X_val_s = norm.transform(X_val_s.reshape(-1,3)).reshape(-1,128,3)
+    X_val_t = norm.transform(X_val_t.reshape(-1,3)).reshape(-1,128,3)
     
     num_test = 400
     
     combined_test = np.vstack([X_val_s[:num_test], X_val_t[:num_test]])
 
-    return X_train_s, y_train_s, combined_test, X_val_s, y_val_s, X_val_t, y_val_t, X_t, Y_t,norm
+    return X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s, X_val_t, y_val_t, X_t, X_train_t_n, Y_t, norm
 
 def get_args():
     # Get some basic command line arguements
@@ -88,30 +91,29 @@ def get_args():
                         type=str, default='cr_user_device')
     parser.add_argument('-u', '--user', 
                         help='Target participant', 
-                        type=str, default=None)
-    parser.add_argument('-s', '--steps', help='Training steps', 
+                        type=str, default='g')
+    parser.add_argument('-s', '--steps', help='Pretraining steps for source model', 
                         type=int, default=6000)
     parser.add_argument('-b', '--batch', help='Training batch size', 
                         type=int, default=128)
     parser.add_argument('-d', '--dataset', help='Dataset', 
                         type=str, default='HAR')
     parser.add_argument('-c', '--device', help='Wearable device [watch|phone]', 
-                        type=str, default='watch')
-    parser.add_argument('-p', '--path', help='Dataset path', 
+                        type=str, default='phone')
+   parser.add_argument('-p', '--path', help='Dataset path', 
                         type = str, default='path/to/dataset')
     
     return parser.parse_args()
 
 
-def train(X_train_s, y_train_s, combined_test, X_val_s, y_val_s,
-          X_val_t, y_val_t, X_t,Y_t, norm, args, device=None):
+def train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s, 
+                                X_val_t, y_val_t, X_t, X_t_n, Y_t, norm, args, source_target=None):
     n_lables = y_val_t.shape[1]
     batch_size = args.batch
-        
     tf.reset_default_graph()
     graph = tf.get_default_graph()
     with graph.as_default():
-        data = [X_train_s, y_train_s, combined_test, 
+        data = [X_train_s, X_train_s_n,  y_train_s, combined_test, 
                 X_val_s, y_val_s, X_val_t, y_val_t] 
         source_model = Source_model(batch_size, args, n_lables)
         print('\n Training only source model \n')
@@ -127,37 +129,37 @@ def train(X_train_s, y_train_s, combined_test, X_val_s, y_val_s,
     tf.reset_default_graph()
     graph = tf.get_default_graph()
     with graph.as_default():  
-        data = [X_t, Y_t, X_train_s, y_train_s, X_val_s, y_val_s]
+        data = [X_t, X_t_n, Y_t, X_train_s, X_train_s_n, y_train_s, X_val_s, y_val_s]
         odin = ODIN('MMD', pretrained_par, n_lables, args, 256)
-        if args.user != None:
-             print('\n Adaptation to user %s'+ args.user)
-        else: 
-             print('\n Adaptation to device %s'+ device)
+        
+        print('\n Adaptation to user %s'+ args.user)
         test_emb, sess, history, combined_test_labels, combined_test_domain, X0 = \
                 odin.train_and_evaluate(data, graph, norm, 
                                         args.user)
-        save_path = os.path.join("results/", args.mode)
+        save_path = os.path.join("results", args.mode,args.dataset, source_target[0]+"_"+source_target[1])
         if not os.path.isdir(save_path):
             os.makedirs(save_path, exist_ok=True)
-        if args.user != None:
-              path = os.path.join(str(save_path),'%s.hkl'%(args.user))
-        else: 
-              path = os.path.join(str(save_path),'%s.hkl'%(device))
-        save_file(history, path)
+        
+        path_result = os.path.join(str(save_path),'%s.hkl'%(args.user))
+        
+        save_file(history, path_result)
+        save_file(feature, os.path.join(str(save_path),'%s_%s.hkl'%('feat_ext',args.user)))
+        save_file(label_class, os.path.join(str(save_path),'%s_%s.hkl'%('label_class',args.user)))
+        save_file(decode_w, os.path.join(str(save_path),'%s_%s.hkl'%('decode',args.user)))
+        #compare_recon(sess, X_val_t, odin, 0, False)
         
         
 def main():
     
     args = get_args()
-    dataset = args.dataset
     if args.mode == 'cr_user_device':
         # Loading the data
         df = pd.read_csv(os.path.join(args.path, "Phones_accelerometer.csv"))
         df = df.dropna()
         df.rename(columns={'x': 'attr_x', 'y': 'attr_y','z': 'attr_z','gt':'activity'}, inplace=True)
-        device_ss = ['nexus4','s3','samsungold','s3mini']
-        #device_ss=['samsungold']
-        device_tt = {'s3mini':100,'s3':150,'nexus4':200,'samsungold':50}
+        #device_ss = ['nexus4','s3','samsungold','s3mini']
+        device_ss = ['samsungold']       # SamsungS+
+        device_tt = {'s3mini':100,'s3':150,'nexus4':200}
         #device_tt={'s3mini':100}
         user_t = args.user                        # change the user target
         for device_s in device_ss: 
@@ -180,15 +182,14 @@ def main():
                          
                     elif device == 'samsungold' and device_s !='samsungold':
                         data_s = down_sampling2(data_s,device_tt[device_s], 50)
-                        
-                    X_train_s, y_train_s, combined_test, X_val_s, \
+                    X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, \
                         y_val_s, X_val_t, y_val_t, X_t, \
-                            Y_t, norm = prep_data(data_t, data_s)
+                          X_t_n, Y_t, norm = prep_data(data_t, data_s)
                             
                    # training and adapting
                    
-                    train(X_train_s, y_train_s, combined_test, X_val_s, y_val_s, 
-                                X_val_t, y_val_t, X_t,Y_t, norm, args)
+                    train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s, 
+                                X_val_t, y_val_t, X_t, X_t_n, Y_t, norm, args, [device_s, device])
                     
     elif args.mode == 'cr_user':
         
@@ -199,7 +200,7 @@ def main():
             elif args.device == 'phone':
                 position = 'waist'
             data_s = load_data(user=user_s, position=position, sensor='acc', path=args.path)
-            # data_s = data_s[data_s['activity']!='jumping']
+            #data_s = data_s[data_s['activity']!='jumping']
             user_t=[
                     '1',
                     '11',
@@ -208,9 +209,10 @@ def main():
                     '8',
                     '7'] # target users
         elif args.dataset == 'HAR':
+            #pdb.set_trace()
             if args.device == 'phone':
                 df = pd.read_csv(os.path.join(args.path, "Phones_accelerometer.csv"))
-                device_s = 'samsungold'
+                device = 'samsungold'
             elif args.device == 'watch':
                 df = pd.read_csv(os.path.join(args.path, "Watch_accelerometer.csv"))
                 device_s = 'gear'
@@ -218,26 +220,27 @@ def main():
             df = df.dropna()
             df.rename(columns={'x': 'attr_x', 'y': 'attr_y','z': 'attr_z','gt':'activity'}, inplace=True)
             data_s = extract_users(df,['a','b','c','d','i'])
+            #data_s = data_s[data_s['activity']!='jumping']
             user_t = ['e','g','h']
             data_t = extract_users(df, user_t)
-            device_s='samsungold'
-            data_s=data_s[data_s['Model']==device_s]
-            data_t=data_t[data_t['Model']==device_s]
+            data_s = data_s[data_s['Model'] == device]
+            data_t = data_t[data_t['Model'] == device]
             
         for user in user_t:
             args.user = user
-            data_t = load_data(user=user_t, position='forearm', sensor='acc', path= args.path)
+            if args.dataset == 'PAR':
+                data_t = load_data(user=user_t, position='forearm', sensor='acc', path= args.path)
            # data_t=data_t[data_t['activity']!='jumping']
-            X_train_s, y_train_s, combined_test, X_val_s, \
+            X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, \
                         y_val_s, X_val_t, y_val_t, X_t, \
-                            Y_t, norm = prep_data(data_t, data_s)
-            train(X_train_s, y_train_s, combined_test, X_val_s, y_val_s, 
-                                X_val_t, y_val_t, X_t,Y_t, norm, args)
+                          X_t_n, Y_t, norm = prep_data(data_t, data_s)
+            train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s, 
+                                X_val_t, y_val_t, X_t, X_t_n, Y_t, norm, args, [device, user])
             
     elif args.mode == 'cr_device':
         df = pd.read_csv(os.path.join(args.path, "Phones_accelerometer.csv"))       
         df = df.dropna()
-        df.rename(columns={'x': 'attr_x', 'y': 'attr_y','z': 'attr_z','gt':'activity'}, inplace=True)
+        df.rename(columns = {'x': 'attr_x', 'y': 'attr_y','z': 'attr_z','gt':'activity'}, inplace=True)
         device_ss = ['nexus4','s3','samsungold','s3mini']
         data = extract_users(df,['a'])
         device_tt = {'s3mini':100,'s3':150,'nexus4':200,'samsungold':50}
@@ -245,26 +248,26 @@ def main():
         for device_s in device_ss:
             for device_t in device_tt:
                 if device_t != device_s:
-                    data_s = data[data['Model']==device_s]
-                    data_t = data[data['Model']==device_t]
+                    data_s = data[data['Model'] == device_s]
+                    data_t = data[data['Model'] == device_t]
                      #downsampling to 50 Hz
                     if device_t!='samsungold' and device_s !='samsungold' :
-                         data_t=down_sampling2(data_t,device_tt[device_t], 50)
-                         data_s=down_sampling2(data_s,device_tt[device_s], 50)
+                         data_t = down_sampling2(data_t,device_tt[device_t], 50)
+                         data_s = down_sampling2(data_s,device_tt[device_s], 50)
                         
                        
                     elif device_t!='samsungold' and device_s =='samsungold':
                          
-                        data_t=down_sampling2(data_t,device_tt[device_t], 50)
+                        data_t = down_sampling2(data_t, device_tt[device_t], 50)
                          
-                    elif device_t=='samsungold' and device_s !='samsungold':
-                        data_s=down_sampling2(data_s,device_tt[device_s], 50)
+                    elif device_t == 'samsungold' and device_s != 'samsungold':
+                        data_s = down_sampling2(data_s,device_tt[device_s], 50)
                      
-                    X_train_s, y_train_s, combined_test, X_val_s, \
+                    X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, \
                         y_val_s, X_val_t, y_val_t, X_t, \
-                            Y_t, norm = prep_data(data_t, data_s)
-                    train(X_train_s, y_train_s, combined_test, X_val_s, y_val_s, 
-                                X_val_t, y_val_t, X_t,Y_t, norm, args, device_t)
+                          X_t_n, Y_t, norm = prep_data(data_t, data_s)
+                    train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s, 
+                                X_val_t, y_val_t, X_t, X_t_n, Y_t, norm, args, [device_s, device_t])
        
 if __name__ == "__main__":
     main()
