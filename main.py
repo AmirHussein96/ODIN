@@ -71,8 +71,10 @@ def prep_data(data_t, data_s):
     norm.fit(np.vstack([X_train_s,X_train_t]).reshape(-1,3))
     X_train_s = norm.transform(X_train_s.reshape(-1,3)).reshape(-1,128,3)
     X_train_t = norm.transform(X_train_t.reshape(-1,3)).reshape(-1,128,3)
-    X_train_s_n = norm.transform(X_train_s_n.reshape(-1,3)).reshape(-1,128,3)
-    X_train_t_n = norm.transform(X_train_t_n.reshape(-1,3)).reshape(-1,128,3)
+    #X_train_s_n = norm.transform(X_train_s_n.reshape(-1,3)).reshape(-1,128,3)
+    #X_train_t_n = norm.transform(X_train_t_n.reshape(-1,3)).reshape(-1,128,3)
+    X_train_s_n = X_train_s + gen_noise(X_train_s.shape, X_train_s, False)
+    X_train_t_n = X_train_t + gen_noise(X_train_t.shape, X_train_t, False)
     X_val_s = norm.transform(X_val_s.reshape(-1,3)).reshape(-1,128,3)
     X_val_t = norm.transform(X_val_t.reshape(-1,3)).reshape(-1,128,3)
     
@@ -108,7 +110,7 @@ def get_args():
 
 def train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s, 
                                 X_val_t, y_val_t, X_t, X_t_n, Y_t, norm, args, source_target=None):
-    n_lables = y_val_t.shape[1]
+    n_lables = y_train_s.shape[1]
     batch_size = args.batch
     tf.reset_default_graph()
     graph = tf.get_default_graph()
@@ -117,7 +119,7 @@ def train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s,
                 X_val_s, y_val_s, X_val_t, y_val_t] 
         source_model = Source_model(batch_size, args, n_lables)
         print('\n Training only source model \n')
-        
+        # args.steps = X_train_s.shape[0]*50//128
         source_only_emb,sess,hist = \
             source_model.train_and_evaluate(graph, data, 
                                             num_steps=args.steps, 
@@ -131,11 +133,11 @@ def train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s,
     with graph.as_default():  
         data = [X_t, X_t_n, Y_t, X_train_s, X_train_s_n, y_train_s, X_val_s, y_val_s]
         odin = ODIN('MMD', pretrained_par, n_lables, args, 256)
-        
+        #X_t.shape[0]*6//128
         print('\n Adaptation to user %s'+ args.user)
         test_emb, sess, history, combined_test_labels, combined_test_domain, X0 = \
                 odin.train_and_evaluate(data, graph, norm, 
-                                        args.user)
+                                        args.user, num_steps=1000)
         save_path = os.path.join("results", args.mode,args.dataset, source_target[0]+"_"+source_target[1])
         if not os.path.isdir(save_path):
             os.makedirs(save_path, exist_ok=True)
@@ -143,9 +145,9 @@ def train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s,
         path_result = os.path.join(str(save_path),'%s.hkl'%(args.user))
         
         save_file(history, path_result)
-        save_file(feature, os.path.join(str(save_path),'%s_%s.hkl'%('feat_ext',args.user)))
-        save_file(label_class, os.path.join(str(save_path),'%s_%s.hkl'%('label_class',args.user)))
-        save_file(decode_w, os.path.join(str(save_path),'%s_%s.hkl'%('decode',args.user)))
+        save_file(feature, os.path.join(str(weights_path),'%s_%s.hkl'%('feat_ext',args.user)))
+        save_file(label_class, os.path.join(str(weights_path), '%s_%s.hkl'%('label_class',args.user)))
+        save_file(decode_w, os.path.join(str(weights_path),'%s_%s.hkl'%('decode',args.user)))
         compare_recon(sess, X_val_t, odin, 0, False)
         
         
@@ -212,30 +214,32 @@ def main():
             #pdb.set_trace()
             if args.device == 'phone':
                 df = pd.read_csv(os.path.join(args.path, "Phones_accelerometer.csv"))
-                device = 'samsungold'
+                position = 'samsungold'
             elif args.device == 'watch':
                 df = pd.read_csv(os.path.join(args.path, "Watch_accelerometer.csv"))
-                device_s = 'gear'
+                position = 'gear'
             
             df = df.dropna()
             df.rename(columns={'x': 'attr_x', 'y': 'attr_y','z': 'attr_z','gt':'activity'}, inplace=True)
             data_s = extract_users(df,['a','b','c','d','i'])
             #data_s = data_s[data_s['activity']!='jumping']
             user_t = ['e','g','h']
-            data_t = extract_users(df, user_t)
-            data_s = data_s[data_s['Model'] == device]
-            data_t = data_t[data_t['Model'] == device]
+            #data_t = extract_users(df, user_t)
+            data_s = data_s[data_s['Model'] == position]
+            #data_t = data_t[data_t['Model'] == device]
             
         for user in user_t:
             args.user = user
             if args.dataset == 'PAR':
-                data_t = load_data(user=user_t, position='forearm', sensor='acc', path= args.path)
+                data_t = load_data(user=user_t, position=position, sensor='acc', path= args.path)
+            data_t = extract_users(df, user_t)
+            data_t = data_t[data_t['Model'] == position]
            # data_t=data_t[data_t['activity']!='jumping']
             X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, \
                         y_val_s, X_val_t, y_val_t, X_t, \
                           X_t_n, Y_t, norm = prep_data(data_t, data_s)
             train(X_train_s, X_train_s_n, y_train_s, combined_test, X_val_s, y_val_s, 
-                                X_val_t, y_val_t, X_t, X_t_n, Y_t, norm, args, [device, user])
+                                X_val_t, y_val_t, X_t, X_t_n, Y_t, norm, args, [args.device, user])
             
     elif args.mode == 'cr_device':
         df = pd.read_csv(os.path.join(args.path, "Phones_accelerometer.csv"))       
