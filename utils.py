@@ -44,7 +44,7 @@ def compare_recon(sess,train,model,ch,save_fig):
 
 
 
-def gen_noise(shape, x, zero_data = False, scale=0.15):
+def gen_noise(shape, x, zero_data = False, scale=0.000):
     if not zero_data:
         return np.random.normal(loc=0, scale=scale, size=shape)
     # zero out some values
