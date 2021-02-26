@@ -706,7 +706,7 @@ class Source_model(object):
            # Build the model graph
         
         #self.learning_rate = tf.placeholder(tf.float32, [])
-        self.l2_loss = 0.001*sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
+        self.l2_loss = 0.0001*sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
         self.pred_loss = tf.reduce_mean(self.pred_loss)
         #loss_summary1=tf.summary.scalar('pred_loss',self.pred_loss)
         self.recon_loss = tf.losses.mean_pairwise_squared_error(self.X, self.decoder_s)*0.001
@@ -738,7 +738,7 @@ class Source_model(object):
             save_file(self.label_class,'./label_class_weights')
         return self.feature, self.label_class, self.decode_w
     
-    def train_and_evaluate(self, graph, data, num_steps=6000, verbose=True):
+    def train_and_evaluate(self, graph, data, num_steps=8000, verbose=True):
         """Helper to run the model with different training modes."""
 
         self.num_steps = num_steps
@@ -911,7 +911,7 @@ class ODIN(object):
             with tf.variable_scope('MMD'):
                 x = fixprob(self.feature_s)
                 y = fixprob(self.feature_t)
-                self.adversarial_loss=mmd_loss(x, y, self.l)
+                self.adversarial_loss = mmd_loss(x, y, self.l)
         elif self.da_loss=='DANN':
             with tf.variable_scope('domain_predictor'):
           
@@ -1034,11 +1034,11 @@ class ODIN(object):
 
 
     def train_and_evaluate(self, data, graph, norm, user=None, num_steps=1000, verbose=True):
-        """Helper to run the model with different training modes."""
+        """ Helper to run the model with different training modes."""
         X_t, _,  Y_t, X_train_s, X_train_s_n, y_train_s, X_val_s, y_val_s = data
-        history = dict(source_acc=[],target_acc=[],domain_acc=[],embed=[],test_labels=[],test_domain=[])
+        history = dict(source_acc=[], target_acc=[], domain_acc=[], embed=[], test_labels=[], test_domain=[])
     
-        skf = KFold(n_splits=5,random_state=10, shuffle=True)
+        skf = KFold(n_splits=5, random_state=42, shuffle=True)
         fold=0
        
         for train_index, test_index in skf.split(X_t, Y_t.argmax(1)):
@@ -1048,9 +1048,10 @@ class ODIN(object):
             X_train_t, X_val_t, y_train_t, y_val_t =  X_t[train_index],\
                             X_t[test_index], Y_t[train_index],Y_t[test_index]
             
-            X_t_n = X_train_t + gen_noise(X_train_t.shape, X_train_t, False)
+            #X_t_n = X_train_t + gen_noise(X_train_t.shape, X_train_t, False)
             X_train_t = norm.transform(X_train_t.reshape(-1,3)).reshape(-1,128,3)
-            X_t_n = norm.transform(X_t_n.reshape(-1,3)).reshape(-1,128,3)
+            X_t_n = X_train_t + gen_noise(X_train_t.shape, X_train_t, False)
+            #X_t_n = norm.transform(X_t_n.reshape(-1,3)).reshape(-1,128,3)
             X_val_t = norm.transform(X_val_t.reshape(-1,3)).reshape(-1,128,3)
             num_test = 400
             combined_test_labels = np.vstack([y_val_s[:num_test], y_val_t[:num_test]])
@@ -1088,7 +1089,7 @@ class ODIN(object):
                      self.label_acc,self.L2,self.adver_loss,self.recon_loss],
                     feed_dict={self.X_s: X0, self.X_s_n: X0_n, self.X_t: X1, self.X_t_n: X1_n,self.y_s: y0, 
                                self.y_t:y1,self.domain:domain_labels,
-                               self.train: True, self.l: 0.1, self.keep_rate:1, self.L2_loss:0.5})
+                               self.train: True, self.l: 0.5, self.keep_rate:1, self.L2_loss:0.5})
                 
                 step+=1
                 if verbose and step % 100 == 0:
@@ -1096,9 +1097,14 @@ class ODIN(object):
                                 feed_dict={self.X_s_n: X_val_s[0:y_val_t.shape[0]],
                                            self.X_t_n: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
                                            self.y_t:y_val_t, self.train: True, self.keep_rate:1.0})
+                    target_acc = sess.run(self.label_acc,
+                                    feed_dict={
+                                        self.X_s_n: X_val_s[0:y_val_t.shape[0]],
+                                           self.X_t_n: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
+                                           self.y_t:y_val_t, self.train: False, self.keep_rate:1.0})
                     #print_a_b(sess)
-                    print('total_loss: %.3f  source_val_acc: %.3f ploss: %.3f adver_loss: %.3f  l2: %.3f  recon_loss: %.3f'%(
-                            batch_loss, source_acc, ploss, da_loss,l2,ae_loss))
+                    print('total_loss: %.3f  source_val_acc: %.3f ploss: %.3f target_acc: %.3f adver_loss: %.3f  l2: %.3f  recon_loss: %.3f'%(
+                            batch_loss, source_acc, ploss,target_acc, da_loss,l2,ae_loss))
                                  
             # Compute final evaluation on test data
             source_acc = sess.run(self.label_acc,
