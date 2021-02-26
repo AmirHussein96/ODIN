@@ -1038,7 +1038,7 @@ class ODIN(object):
         X_t, _,  Y_t, X_train_s, X_train_s_n, y_train_s, X_val_s, y_val_s = data
         history = dict(source_acc=[], target_acc=[], domain_acc=[], embed=[], test_labels=[], test_domain=[])
     
-        skf = KFold(n_splits=5, random_state=42, shuffle=True)
+        skf = KFold(n_splits=5, random_state=10, shuffle=True)
         fold=0
        
         for train_index, test_index in skf.split(X_t, Y_t.argmax(1)):
@@ -1097,11 +1097,6 @@ class ODIN(object):
                                 feed_dict={self.X_s_n: X_val_s[0:y_val_t.shape[0]],
                                            self.X_t_n: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
                                            self.y_t:y_val_t, self.train: True, self.keep_rate:1.0})
-                    target_acc = sess.run(self.label_acc,
-                                    feed_dict={
-                                        self.X_s_n: X_val_s[0:y_val_t.shape[0]],
-                                           self.X_t_n: X_val_t, self.y_s:y_val_s[0:y_val_t.shape[0]],
-                                           self.y_t:y_val_t, self.train: False, self.keep_rate:1.0})
                     #print_a_b(sess)
                     print('total_loss: %.3f  source_val_acc: %.3f ploss: %.3f target_acc: %.3f adver_loss: %.3f  l2: %.3f  recon_loss: %.3f'%(
                             batch_loss, source_acc, ploss,target_acc, da_loss,l2,ae_loss))
