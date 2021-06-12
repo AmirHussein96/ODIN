@@ -8,7 +8,7 @@ This repository contains the code used for the paper titled "Domain Adaptation w
 
 ## Model
 
-![Alt text](images/DA_AE_soft.png?raw=true "proposed_approach")
+![Alt text](images/odin_stage2.png?raw=true "proposed_approach")
 
 ## Requirements
 
