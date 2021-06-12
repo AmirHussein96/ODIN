@@ -44,7 +44,7 @@ def compare_recon(sess,train,model,ch,save_fig):
 
 
 
-def gen_noise(shape, x, zero_data = False, scale=0.000):
+def gen_noise(shape, x, zero_data = False, scale=0.002):
     if not zero_data:
         return np.random.normal(loc=0, scale=scale, size=shape)
     # zero out some values
@@ -52,11 +52,11 @@ def gen_noise(shape, x, zero_data = False, scale=0.000):
     unif_n = np.arange(x.size)/(x.size-1)
     np.random.shuffle(unif_n)
     # percentage of frames to keep, 1-keep will be set to zero
-    keep = 0.97
+    keep = 0.90
     mask = (unif_n>keep).reshape(shape)
     x[mask] = zeros[mask]
     # -x will zero out 1-keep % of elements
-    return -x
+    return x
 
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)
