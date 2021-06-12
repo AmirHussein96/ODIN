@@ -24,9 +24,8 @@ from tensorflow.keras import layers
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler,MinMaxScaler,RobustScaler
-from sklearn.model_selection import KFold, StratifiedKFold
 from utils import gen_noise, save_file, compare_recon
-from models_final import mmd_loss, fixprob, Source_model, ODIN
+from models import mmd_loss, fixprob, Source_model, ODIN
 from data_preparation import windowing, extract_users, down_sampling2, load_data
 import matplotlib.pyplot as plt
 import seaborn as sns
