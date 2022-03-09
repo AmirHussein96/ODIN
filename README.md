@@ -63,6 +63,16 @@ Toy examples for the limitations of domain adaptation with hard parameter sharin
 - [Amir Hussein](https://github.com/AmirHussein96) anh21@mail.aub.edu 
 
 
-## Paper:
-[comming soon]
-
+## Cite Paper:
+```
+@article{hussein2022domain,
+  title={Domain Adaptation with Representation Learning and Nonlinear Relation for Time Series},
+  author={Hussein, Amir and Hajj, Hazem},
+  journal={ACM Transactions on Internet of Things},
+  volume={3},
+  number={2},
+  pages={1--26},
+  year={2022},
+  publisher={ACM New York, NY}
+}
+```
