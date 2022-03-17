@@ -15,13 +15,6 @@ This repository contains the code used for the paper titled "Domain Adaptation w
 - python version ` 3.6.12 `
 - To create anaconda environment run `conda env create -f environment.yml`
 
-## Main Folders Description
-
-- CHBMIT and FB: Raw dataset folders. 
-- CHBMIT_cache and FB_cache: Prepared data folders.
-- models/: Model source code.
-- utils/: Helping modules to load and prepare the data.
-
 
 ## Quick start
 
