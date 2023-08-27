@@ -1,6 +1,6 @@
 # ODIN
 
-This repository contains the code used for the paper titled "Domain Adaptation with Representation Learning and Nonlinear Relation for Time Series" by Hussein A., Hajj H. [https://dl.acm.org/doi/10.1145/3502905] 
+This repository contains the code used for the paper titled [Domain Adaptation with Representation Learning and Nonlinear Relation for Time Series" by Hussein A., Hajj H](https://dl.acm.org/doi/10.1145/3502905).
 
 ## High level approach description
 
